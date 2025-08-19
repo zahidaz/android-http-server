@@ -34,8 +34,7 @@
             android:name=".HttpServerService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="specialUse"
-            />
+            android:foregroundServiceType="specialUse" />
     </application>
 
 </manifest>
