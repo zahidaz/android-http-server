@@ -10,7 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.widget.Toast
-import androidx.core.app.ActivityCompat
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -50,10 +51,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
-
-    companion object {
-        private const val PERMISSION_REQUEST_CODE = 100
-    }
 
     var serverService: HttpServerService? = null
 
@@ -89,7 +86,7 @@ class MainActivity : ComponentActivity() {
         unbindService(serviceConnection)
     }
 
-    private fun getRequiredPermissions(): Array<String> {
+    fun getRequiredPermissions(): Array<String> {
         val permissions = mutableListOf<String>()
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -105,30 +102,6 @@ class MainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
         }
     }
-
-    fun requestPermissions() {
-        val requiredPermissions = getRequiredPermissions()
-        ActivityCompat.requestPermissions(this, requiredPermissions, PERMISSION_REQUEST_CODE)
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        
-        when (requestCode) {
-            PERMISSION_REQUEST_CODE -> {
-                if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                    Toast.makeText(this, "Permissions granted! You can now start the server.", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "Permissions required for server notifications.", Toast.LENGTH_LONG).show()
-                }
-                recreate()
-            }
-        }
-    }
 }
 
 @Composable
@@ -141,6 +114,18 @@ fun ServerScreen() {
     var portText by remember { mutableStateOf("8080") }
     var hasPermissions by remember { mutableStateOf(false) }
     var isServerRunning by remember { mutableStateOf(false) }
+    
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        hasPermissions = allGranted
+        if (allGranted) {
+            Toast.makeText(context, "Permissions granted! You can now start the server.", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Permissions required for server notifications.", Toast.LENGTH_LONG).show()
+        }
+    }
     
     LaunchedEffect(Unit) {
         hasPermissions = activity.checkPermissions()
@@ -192,8 +177,10 @@ fun ServerScreen() {
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = {
-                            activity.requestPermissions()
-                            hasPermissions = activity.checkPermissions()
+                            val requiredPermissions = activity.getRequiredPermissions()
+                            if (requiredPermissions.isNotEmpty()) {
+                                permissionLauncher.launch(requiredPermissions)
+                            }
                         }
                     ) {
                         Text("Grant Permissions")

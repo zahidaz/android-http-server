@@ -63,19 +63,15 @@ class HttpServerService : Service() {
             server?.start(wait = false)
             isRunning = true
             
-            // Try to start as foreground service, fall back to regular notification if restricted
             try {
                 showNotification("Server running on http://${getLocalIpAddress()}:$port")
             } catch (e: Exception) {
-                // If foreground service fails, just update the running state
-                // The notification will be shown when the service is properly started
             }
         } catch (e: Exception) {
             isRunning = false
             try {
                 showNotification("Failed to start server: ${e.message}")
             } catch (notificationError: Exception) {
-                // If notification also fails, just log the error
             }
         }
     }
@@ -127,12 +123,10 @@ class HttpServerService : Service() {
                 notificationManager.notify(NOTIFICATION_ID, notification)
             }
         } catch (e: Exception) {
-            // If startForeground fails due to restrictions, try regular notification
             try {
                 val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
                 notificationManager.notify(NOTIFICATION_ID, notification)
             } catch (e2: Exception) {
-                // If both fail, we can't show notifications
             }
         }
     }
